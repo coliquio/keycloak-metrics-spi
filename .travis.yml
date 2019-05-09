@@ -1,0 +1,3 @@
+language: java
+install: ./gradlew assemble
+script: ./gradlew -PkeycloakVersion="5.0.0" -PprometheusVersion="0.3.0" jar  
