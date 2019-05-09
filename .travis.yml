@@ -2,4 +2,4 @@ language: java
 install: ./gradlew assemble
 script: 
   - ./gradlew -PkeycloakVersion="5.0.0" -PprometheusVersion="0.3.0" jar  
-  - ls -la _build/libs_
+  - ls -la build/libs/keycloak-metrics-spi-1.0.1.jar
