@@ -2,10 +2,11 @@ language: java
 install: "./gradlew assemble"
 script:
 - ./gradlew -PkeycloakVersion="5.0.0" -PprometheusVersion="0.3.0" jar
+- ls -la build/libs/keycloak-metrics-spi-1.0.1.jar
 deploy:
   provider: releases
   api_key:
-    secure: $API_KEY
+    secure: HTfG3m3W2OvVxKk1MPCcKzqolZiE3up2LLF3kLbcQpx6WjaTBu3se04t47Pdx9BvmOoIOnXsrFFGdhjjHk6ZixTFVchRi7R59eRfhWYejgvd4O2llhvQtaD0BJNi2SVGNks++dRPUrgWtEE7LfB3KqI3v9gBhv7AZvlInbX30BeO+CgHO2iu7szSKFY5C+l6iBCmGeLBlWYZxtJjkLobYjxUmzJB3SKV0XBZUYNldREO3P1zxUh70007+bXSVF49WEHHao8OPOL5CAOwqar7uAi2TZYN5fCPreUqCEAshl9cLHAtJbrediuKiOWSj8ASTilHCc4MMoOMNBMmfPrwhLmAXKVsg9x5Llyd/t7iKOwNKMa3C0d9SDD/qCB8kd3pfpRLpWD0wAgbX2XnaRJJslb1fT8bHPUm0vcysMlL/vLMN6OOWGkfAEFHmuyC83N1BquRHisD0WVOWrtbKRSKIOmFZL7H+/pQWofoyqEySGCpAa6BndD3PLh7QC6iUcmPrszeLiastwdbk//NQboSF7qeWCriXuORY7miHgFqoRyw2PfZesOqCQ6Tp2KhLPCfmXtYYN859kGpn6+j/x8QZyor0ns0UxW3N+HD6qRBDwpE/jNeXMk8AY+AMX1jk20c6hK555ssqDi3mhPFSQV7WugWfUGLCtzytCBuSO/AoQU=
   file: build/libs/keycloak-metrics-spi-1.0.1.jar
   on:
     repo: coliquio/keycloak-metrics-spi
