@@ -1,5 +1,11 @@
 language: java
-install: ./gradlew assemble
-script: 
-  - ./gradlew -PkeycloakVersion="5.0.0" -PprometheusVersion="0.3.0" jar  
-  - ls -la build/libs/keycloak-metrics-spi-1.0.1.jar
+install: "./gradlew assemble"
+script:
+- ./gradlew -PkeycloakVersion="5.0.0" -PprometheusVersion="0.3.0" jar
+deploy:
+  provider: releases
+  api_key:
+    secure: $API_KEY
+  file: build/libs/keycloak-metrics-spi-1.0.1.jar
+  on:
+    repo: coliquio/keycloak-metrics-spi
