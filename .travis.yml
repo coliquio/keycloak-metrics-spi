@@ -6,7 +6,7 @@ env:
     - VERSION=1.0.1
 install: "./gradlew assemble"
 script:
-- ./gradlew -Pversion=$VERSION -PkeycloakVersion=$KEYCLOAK_VERSION -PprometheusVersion=$PROMETHEUS_VERSION jar
+  - ./gradlew -Pversion=$VERSION -PkeycloakVersion=$KEYCLOAK_VERSION -PprometheusVersion=$PROMETHEUS_VERSION jar
 deploy:
   provider: releases
   api_key:
