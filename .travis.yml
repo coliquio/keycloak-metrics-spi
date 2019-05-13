@@ -6,13 +6,14 @@ env:
     - VERSION=1.0.1
 install: "./gradlew assemble"
 script:
-  - ./gradlew -Pversion=$VERSION -PkeycloakVersion=$KEYCLOAK_VERSION -PprometheusVersion=$PROMETHEUS_VERSION jar
+  - "./gradlew -Pversion=${VERSION} -PkeycloakVersion=${KEYCLOAK_VERSION} -PprometheusVersion=${PROMETHEUS_VERSION} jar"
+  - "ls -la build/libs/keycloak-metrics-spi-${VERSION}.jar"
 deploy:
   provider: releases
   api_key:
     secure: $API_KEY
-  file: 
-    - build/libs/keycloak-metrics-spi-$VERSION.jar
+  file: "build/libs/keycloak-metrics-spi-${VERSION}.jar"
   skip_cleanup: true
   on:
     repo: coliquio/keycloak-metrics-spi
+    tags: true
