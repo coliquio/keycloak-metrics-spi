@@ -1,5 +1,6 @@
 package org.jboss.aerogear.keycloak.metrics;
 
+import org.keycloak.models.KeycloakSession;
 import org.keycloak.services.resource.RealmResourceProvider;
 
 import javax.ws.rs.GET;
@@ -12,6 +13,7 @@ public class MetricsEndpoint implements RealmResourceProvider {
 
     // The ID of the provider is also used as the name of the endpoint
     public final static String ID = "metrics";
+    private final KeycloakSession keycloakSession;
 
     @Override
     public Object getResource() {
@@ -21,8 +23,12 @@ public class MetricsEndpoint implements RealmResourceProvider {
     @GET
     @Produces(MediaType.TEXT_PLAIN)
     public Response get() {
-        final StreamingOutput stream = output -> PrometheusExporter.instance().export(output);
+        final StreamingOutput stream = output -> PrometheusExporter.instance().export(output, keycloakSession);
         return Response.ok(stream).build();
+    }
+
+    public MetricsEndpoint(KeycloakSession session) {
+        this.keycloakSession = session;
     }
 
     @Override
