@@ -1,6 +1,5 @@
 package org.jboss.aerogear.keycloak.metrics;
 
-import io.prometheus.client.Counter;
 import org.hamcrest.MatcherAssert;
 import org.junit.Before;
 import org.junit.Test;
@@ -16,7 +15,6 @@ import java.util.Collections;
 import java.util.HashMap;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
 
 @SuppressWarnings("unchecked")
 public class PrometheusExporterTest {
@@ -25,24 +23,9 @@ public class PrometheusExporterTest {
 
     @Before
     public void before() {
-        for (Counter counter : PrometheusExporter.instance().counters.values()) {
-            counter.clear();
-        }
         PrometheusExporter.instance().totalLogins.clear();
         PrometheusExporter.instance().totalFailedLoginAttempts.clear();
         PrometheusExporter.instance().totalRegistrations.clear();
-    }
-
-    @Test
-    public void shouldRegisterCountersForAllKeycloakEvents() {
-        int userEvents = EventType.values().length;
-        int adminEvents = OperationType.values().length;
-
-        MatcherAssert.assertThat(
-            "All events registered",
-            userEvents + adminEvents - 3,                             // -3 comes from the events that
-            is(PrometheusExporter.instance().counters.size()));       // have their own counters outside the counter map
-
     }
 
     @Test

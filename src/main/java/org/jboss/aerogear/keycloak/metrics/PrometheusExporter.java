@@ -8,32 +8,26 @@ import io.prometheus.client.exporter.common.TextFormat;
 import io.prometheus.client.hotspot.DefaultExports;
 import org.jboss.logging.Logger;
 import org.keycloak.events.Event;
-import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
-import org.keycloak.events.admin.OperationType;
 import org.keycloak.models.*;
 
 import java.io.*;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public final class PrometheusExporter {
 
-    private final static String USER_EVENT_PREFIX = "keycloak_user_event_";
-    private final static String ADMIN_EVENT_PREFIX = "keycloak_admin_event_";
     private final static String PROVIDER_KEYCLOAK_OPENID = "keycloak";
-
     private final static PrometheusExporter INSTANCE = new PrometheusExporter();
-
     private final static Logger logger = Logger.getLogger(PrometheusExporter.class);
 
     // these fields are package private on purpose
-    final Map<String, Counter> counters = new HashMap<>();
     final Counter totalLogins;
     final Counter totalFailedLoginAttempts;
     final Counter totalRegistrations;
     final Counter responseErrors;
+    final Counter eventCounter;
+    final Counter adminEventCounter;
     final Histogram requestDuration;
     final Gauge activeSessions;
 
@@ -80,22 +74,19 @@ public final class PrometheusExporter {
             .labelNames("method", "route")
             .register();
 
-        // Counters for all user events
-        for (EventType type : EventType.values()) {
-            if (type.equals(EventType.LOGIN) || type.equals(EventType.LOGIN_ERROR) || type.equals(EventType.REGISTER)) {
-                continue;
-            }
-            final String counterName = buildCounterName(type);
-            counters.put(counterName, createCounter(counterName, false));
-        }
+        eventCounter = Counter.build()
+            .name("keycloak_user_event")
+            .labelNames("realm", "event_name")
+            .help("Keycloak event")
+            .register();
 
-        // Counters for all admin events
-        for (OperationType type : OperationType.values()) {
-            final String counterName = buildCounterName(type);
-            counters.put(counterName, createCounter(counterName, true));
-        }
+        adminEventCounter = Counter.build()
+            .name("keycloak_admin_event")
+            .labelNames("realm", "event_name", "resource")
+            .help("Keycloak admin event")
+            .register();
 
-        // Active sessions count∫
+        // Active sessions count
         activeSessions = Gauge.build()
             .name("keycloak_active_sessions_count")
             .help("Active user sessions count")
@@ -111,32 +102,14 @@ public final class PrometheusExporter {
     }
 
     /**
-     * Creates a counter based on a event name
-     */
-    private static Counter createCounter(final String name, boolean isAdmin) {
-        final Counter.Builder counter = Counter.build().name(name);
-
-        if (isAdmin) {
-            counter.labelNames("realm", "resource").help("Generic KeyCloak Admin event");
-        } else {
-            counter.labelNames("realm").help("Generic KeyCloak User event");
-        }
-
-        return counter.register();
-    }
-
-    /**
      * Count generic user event
      *
      * @param event User event
      */
     public void recordGenericEvent(final Event event) {
-        final String counterName = buildCounterName(event.getType());
-        if (counters.get(counterName) == null) {
-            logger.warnf("Counter for event type %s does not exist. Realm: %s", event.getType().name(), event.getRealmId());
-            return;
-        }
-        counters.get(counterName).labels(event.getRealmId()).inc();
+        eventCounter
+            .labels(event.getRealmId(), event.getType().name())
+            .inc();
     }
 
     /**
@@ -145,12 +118,9 @@ public final class PrometheusExporter {
      * @param event Admin event
      */
     public void recordGenericAdminEvent(final AdminEvent event) {
-        final String counterName = buildCounterName(event.getOperationType());
-        if (counters.get(counterName) == null) {
-            logger.warnf("Counter for admin event operation type %s does not exist. Resource type: %s, realm: %s", event.getOperationType().name(), event.getResourceType().name(), event.getRealmId());
-            return;
-        }
-        counters.get(counterName).labels(event.getRealmId(), event.getResourceType().name()).inc();
+        adminEventCounter
+            .labels(event.getRealmId(), event.getOperationType().name(), event.getResourceType().name())
+            .inc();
     }
 
     /**
@@ -265,14 +235,4 @@ public final class PrometheusExporter {
         TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
         writer.flush();
     }
-
-    private String buildCounterName(OperationType type) {
-        return ADMIN_EVENT_PREFIX + type.name();
-    }
-
-    private String buildCounterName(EventType type) {
-        return USER_EVENT_PREFIX + type.name();
-    }
-
-
 }
