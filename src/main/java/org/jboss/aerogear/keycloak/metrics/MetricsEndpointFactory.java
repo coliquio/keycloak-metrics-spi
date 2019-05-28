@@ -10,7 +10,7 @@ import org.keycloak.services.resource.RealmResourceProviderFactory;
 public class MetricsEndpointFactory implements RealmResourceProviderFactory {
     @Override
     public RealmResourceProvider create(KeycloakSession session) {
-        return new MetricsEndpoint();
+        return new MetricsEndpoint(session);
     }
 
     @Override

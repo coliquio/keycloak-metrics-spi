@@ -3,15 +3,14 @@ env:
   global:
     - KEYCLOAK_VERSION=5.0.0
     - PROMETHEUS_VERSION=0.3.0
-    - VERSION=1.0.4
 install: "./gradlew assemble"
 script:
-  - "./gradlew -Pversion=${VERSION} -PkeycloakVersion=${KEYCLOAK_VERSION} -PprometheusVersion=${PROMETHEUS_VERSION} jar"
+    - "./gradlew -Pversion=${TRAVIS_TAG} -PkeycloakVersion=${KEYCLOAK_VERSION} -PprometheusVersion=${PROMETHEUS_VERSION} jar"
 deploy:
   provider: releases
   api_key:
     secure: $API_KEY
-  file: "build/libs/keycloak-metrics-spi-${VERSION}.jar"
+  file: "build/libs/keycloak-metrics-spi-${TRAVIS_TAG}.jar"
   skip_cleanup: true
   on:
     repo: coliquio/keycloak-metrics-spi

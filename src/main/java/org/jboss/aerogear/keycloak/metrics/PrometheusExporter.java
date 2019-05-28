@@ -2,6 +2,7 @@ package org.jboss.aerogear.keycloak.metrics;
 
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import io.prometheus.client.exporter.common.TextFormat;
 import io.prometheus.client.hotspot.DefaultExports;
@@ -10,9 +11,11 @@ import org.keycloak.events.Event;
 import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
 import org.keycloak.events.admin.OperationType;
+import org.keycloak.models.*;
 
 import java.io.*;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class PrometheusExporter {
@@ -32,6 +35,8 @@ public final class PrometheusExporter {
     final Counter totalRegistrations;
     final Counter responseErrors;
     final Histogram requestDuration;
+    final Gauge activeSessions;
+
 
     private PrometheusExporter() {
         // The metrics collector needs to be a singleton because requiring a
@@ -52,7 +57,7 @@ public final class PrometheusExporter {
         totalFailedLoginAttempts = Counter.build()
             .name("keycloak_failed_login_attempts")
             .help("Total failed login attempts")
-            .labelNames("realm", "provider", "error")
+            .labelNames("realm", "provider", "error", "client_id")
             .register();
 
         // package private on purpose
@@ -89,6 +94,13 @@ public final class PrometheusExporter {
             final String counterName = buildCounterName(type);
             counters.put(counterName, createCounter(counterName, true));
         }
+
+        // Active sessions count∫
+        activeSessions = Gauge.build()
+            .name("keycloak_active_sessions_count")
+            .help("Active user sessions count")
+            .labelNames("realm", "client_id")
+            .register();
 
         // Initialize the default metrics for the hotspot VM
         DefaultExports.initialize();
@@ -172,15 +184,15 @@ public final class PrometheusExporter {
     public void recordLoginError(final Event event) {
         final String provider = getIdentityProvider(event);
 
-        totalFailedLoginAttempts.labels(event.getRealmId(), provider, event.getError()).inc();
+        totalFailedLoginAttempts.labels(event.getRealmId(), provider, event.getError(), event.getClientId()).inc();
     }
 
     /**
      * Record the duration between one request and response
      *
-     * @param amt The duration in milliseconds
+     * @param amt    The duration in milliseconds
      * @param method HTTP method of the request
-     * @param route Request route / path
+     * @param route  Request route / path
      */
     public void recordRequestDuration(double amt, String method, String route) {
         requestDuration.labels(method, route).observe(amt);
@@ -189,9 +201,9 @@ public final class PrometheusExporter {
     /**
      * Increase the response error count by a given method and route
      *
-     * @param code The returned http status code
+     * @param code   The returned http status code
      * @param method The request method used
-     * @param route The request route / path
+     * @param route  The request route / path
      */
     public void recordResponseError(int code, String method, String route) {
         responseErrors.labels(Integer.toString(code), method, route).inc();
@@ -228,6 +240,32 @@ public final class PrometheusExporter {
         writer.flush();
     }
 
+    public void export(final OutputStream stream, KeycloakSession session) throws IOException {
+        RealmProvider realmProvider = session.getProvider(RealmProvider.class);
+        UserSessionProvider userSessionProvider = session.getProvider(UserSessionProvider.class);
+
+        for (RealmModel realm : realmProvider.getRealms()) {
+            Map<String, Long> stats = userSessionProvider.getActiveClientSessionStats(realm, false);
+
+            try {
+                List<ClientModel> clients = realm.getClients();
+                for (ClientModel client : clients) {
+                    activeSessions
+                        .labels(realm.getName(), client.getClientId())
+                        .set(stats.getOrDefault(client.getId(), (long) 0));
+                }
+
+
+            } catch (Exception e) {
+                logger.error(e.getStackTrace());
+            }
+        }
+
+        final Writer writer = new BufferedWriter(new OutputStreamWriter(stream));
+        TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
+        writer.flush();
+    }
+
     private String buildCounterName(OperationType type) {
         return ADMIN_EVENT_PREFIX + type.name();
     }
@@ -235,5 +273,6 @@ public final class PrometheusExporter {
     private String buildCounterName(EventType type) {
         return USER_EVENT_PREFIX + type.name();
     }
+
 
 }
