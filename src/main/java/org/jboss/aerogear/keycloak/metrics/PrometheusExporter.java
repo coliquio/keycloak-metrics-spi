@@ -42,27 +42,27 @@ public final class PrometheusExporter {
 
         // package private on purpose
         totalLogins = Counter.build()
-            .name("keycloak_logins")
+            .name("keycloak_logins_total")
             .help("Total successful logins")
             .labelNames("realm", "provider")
             .register();
 
         // package private on purpose
         totalFailedLoginAttempts = Counter.build()
-            .name("keycloak_failed_login_attempts")
+            .name("keycloak_failed_login_attempts_total")
             .help("Total failed login attempts")
             .labelNames("realm", "provider", "error", "client_id")
             .register();
 
         // package private on purpose
         totalRegistrations = Counter.build()
-            .name("keycloak_registrations")
+            .name("keycloak_registrations_total")
             .help("Total registered users")
             .labelNames("realm", "provider")
             .register();
 
         responseErrors = Counter.build()
-            .name("keycloak_response_errors")
+            .name("keycloak_response_errors_total")
             .help("Total number of error responses")
             .labelNames("code", "method", "route")
             .register();
@@ -75,20 +75,20 @@ public final class PrometheusExporter {
             .register();
 
         eventCounter = Counter.build()
-            .name("keycloak_user_event")
+            .name("keycloak_user_events_total")
             .labelNames("realm", "event_name")
             .help("Keycloak event")
             .register();
 
         adminEventCounter = Counter.build()
-            .name("keycloak_admin_event")
+            .name("keycloak_admin_events_total")
             .labelNames("realm", "event_name", "resource")
             .help("Keycloak admin event")
             .register();
 
         // Active sessions count
         activeSessions = Gauge.build()
-            .name("keycloak_active_sessions_count")
+            .name("keycloak_active_sessions_total")
             .help("Active user sessions count")
             .labelNames("realm", "client_id")
             .register();

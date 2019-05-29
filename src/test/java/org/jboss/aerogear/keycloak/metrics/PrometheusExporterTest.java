@@ -32,22 +32,22 @@ public class PrometheusExporterTest {
     public void shouldCorrectlyCountLoginWhenIdentityProviderIsDefined() throws IOException {
         final Event login1 = createEvent(EventType.LOGIN, tuple("identity_provider", "THE_ID_PROVIDER"));
         PrometheusExporter.instance().recordLogin(login1);
-        assertMetric("keycloak_logins", 1, tuple("provider", "THE_ID_PROVIDER"));
+        assertMetric("keycloak_logins_total", 1, tuple("provider", "THE_ID_PROVIDER"));
 
         final Event login2 = createEvent(EventType.LOGIN, tuple("identity_provider", "THE_ID_PROVIDER"));
         PrometheusExporter.instance().recordLogin(login2);
-        assertMetric("keycloak_logins", 2, tuple("provider", "THE_ID_PROVIDER"));
+        assertMetric("keycloak_logins_total", 2, tuple("provider", "THE_ID_PROVIDER"));
     }
 
     @Test
     public void shouldCorrectlyCountLoginWhenIdentityProviderIsNotDefined() throws IOException {
         final Event login1 = createEvent(EventType.LOGIN);
         PrometheusExporter.instance().recordLogin(login1);
-        assertMetric("keycloak_logins", 1, tuple("provider", "keycloak"));
+        assertMetric("keycloak_logins_total", 1, tuple("provider", "keycloak"));
 
         final Event login2 = createEvent(EventType.LOGIN);
         PrometheusExporter.instance().recordLogin(login2);
-        assertMetric("keycloak_logins", 2, tuple("provider", "keycloak"));
+        assertMetric("keycloak_logins_total", 2, tuple("provider", "keycloak"));
     }
 
     @Test
@@ -55,13 +55,13 @@ public class PrometheusExporterTest {
         // with id provider defined
         final Event login1 = createEvent(EventType.LOGIN, tuple("identity_provider", "THE_ID_PROVIDER"));
         PrometheusExporter.instance().recordLogin(login1);
-        assertMetric("keycloak_logins", 1, tuple("provider", "THE_ID_PROVIDER"));
+        assertMetric("keycloak_logins_total", 1, tuple("provider", "THE_ID_PROVIDER"));
 
         // without id provider defined
         final Event login2 = createEvent(EventType.LOGIN);
         PrometheusExporter.instance().recordLogin(login2);
-        assertMetric("keycloak_logins", 1, tuple("provider", "keycloak"));
-        assertMetric("keycloak_logins", 1, tuple("provider", "THE_ID_PROVIDER"));
+        assertMetric("keycloak_logins_total", 1, tuple("provider", "keycloak"));
+        assertMetric("keycloak_logins_total", 1, tuple("provider", "THE_ID_PROVIDER"));
     }
 
     @Test
@@ -74,8 +74,8 @@ public class PrometheusExporterTest {
         final Event login2 = createEvent(EventType.LOGIN, "OTHER_REALM", null, tuple("identity_provider", "THE_ID_PROVIDER"));
         PrometheusExporter.instance().recordLogin(login2);
 
-        assertMetric("keycloak_logins", 1, DEFAULT_REALM, tuple("provider", "THE_ID_PROVIDER"));
-        assertMetric("keycloak_logins", 1, "OTHER_REALM", tuple("provider", "THE_ID_PROVIDER"));
+        assertMetric("keycloak_logins_total", 1, DEFAULT_REALM, tuple("provider", "THE_ID_PROVIDER"));
+        assertMetric("keycloak_logins_total", 1, "OTHER_REALM", tuple("provider", "THE_ID_PROVIDER"));
     }
 
     @Test
@@ -83,13 +83,13 @@ public class PrometheusExporterTest {
         // with id provider defined
         final Event event1 = createEvent(EventType.LOGIN_ERROR, DEFAULT_REALM, "user_not_found", tuple("identity_provider", "THE_ID_PROVIDER"));
         PrometheusExporter.instance().recordLoginError(event1);
-        assertMetric("keycloak_failed_login_attempts", 1, tuple("provider", "THE_ID_PROVIDER"), tuple("error", "user_not_found"));
+        assertMetric("keycloak_failed_login_attempts_total", 1, tuple("provider", "THE_ID_PROVIDER"), tuple("error", "user_not_found"));
 
         // without id provider defined
         final Event event2 = createEvent(EventType.LOGIN_ERROR, DEFAULT_REALM, "user_not_found");
         PrometheusExporter.instance().recordLoginError(event2);
-        assertMetric("keycloak_failed_login_attempts", 1, tuple("provider", "keycloak"), tuple("error", "user_not_found"));
-        assertMetric("keycloak_failed_login_attempts", 1, tuple("provider", "THE_ID_PROVIDER"), tuple("error", "user_not_found"));
+        assertMetric("keycloak_failed_login_attempts_total", 1, tuple("provider", "keycloak"), tuple("error", "user_not_found"));
+        assertMetric("keycloak_failed_login_attempts_total", 1, tuple("provider", "THE_ID_PROVIDER"), tuple("error", "user_not_found"));
     }
 
     @Test
@@ -97,28 +97,28 @@ public class PrometheusExporterTest {
         // with id provider defined
         final Event event1 = createEvent(EventType.REGISTER, tuple("identity_provider", "THE_ID_PROVIDER"));
         PrometheusExporter.instance().recordRegistration(event1);
-        assertMetric("keycloak_registrations", 1, tuple("provider", "THE_ID_PROVIDER"));
+        assertMetric("keycloak_registrations_total", 1, tuple("provider", "THE_ID_PROVIDER"));
 
         // without id provider defined
         final Event event2 = createEvent(EventType.REGISTER);
         PrometheusExporter.instance().recordRegistration(event2);
-        assertMetric("keycloak_registrations", 1, tuple("provider", "keycloak"));
-        assertMetric("keycloak_registrations", 1, tuple("provider", "THE_ID_PROVIDER"));
+        assertMetric("keycloak_registrations_total", 1, tuple("provider", "keycloak"));
+        assertMetric("keycloak_registrations_total", 1, tuple("provider", "THE_ID_PROVIDER"));
     }
 
     @Test
     public void shouldCorrectlyRecordGenericEvents() throws IOException {
         final Event event1 = createEvent(EventType.UPDATE_EMAIL);
         PrometheusExporter.instance().recordGenericEvent(event1);
-        assertMetric("keycloak_user_event_UPDATE_EMAIL", 1);
+        assertMetric("keycloak_user_events_total_UPDATE_EMAIL", 1);
         PrometheusExporter.instance().recordGenericEvent(event1);
-        assertMetric("keycloak_user_event_UPDATE_EMAIL", 2);
+        assertMetric("keycloak_user_events_total_UPDATE_EMAIL", 2);
 
 
         final Event event2 = createEvent(EventType.REVOKE_GRANT);
         PrometheusExporter.instance().recordGenericEvent(event2);
-        assertMetric("keycloak_user_event_REVOKE_GRANT", 1);
-        assertMetric("keycloak_user_event_UPDATE_EMAIL", 2);
+        assertMetric("keycloak_user_events_total_REVOKE_GRANT", 1);
+        assertMetric("keycloak_user_events_total_UPDATE_EMAIL", 2);
     }
 
     @Test
@@ -128,9 +128,9 @@ public class PrometheusExporterTest {
         event1.setResourceType(ResourceType.AUTHORIZATION_SCOPE);
         event1.setRealmId(DEFAULT_REALM);
         PrometheusExporter.instance().recordGenericAdminEvent(event1);
-        assertMetric("keycloak_admin_event_ACTION", 1, tuple("resource", "AUTHORIZATION_SCOPE"));
+        assertMetric("keycloak_admin_events_total_ACTION", 1, tuple("resource", "AUTHORIZATION_SCOPE"));
         PrometheusExporter.instance().recordGenericAdminEvent(event1);
-        assertMetric("keycloak_admin_event_ACTION", 2, tuple("resource", "AUTHORIZATION_SCOPE"));
+        assertMetric("keycloak_admin_events_total_ACTION", 2, tuple("resource", "AUTHORIZATION_SCOPE"));
 
 
         final AdminEvent event2 = new AdminEvent();
@@ -138,8 +138,8 @@ public class PrometheusExporterTest {
         event2.setResourceType(ResourceType.CLIENT);
         event2.setRealmId(DEFAULT_REALM);
         PrometheusExporter.instance().recordGenericAdminEvent(event2);
-        assertMetric("keycloak_admin_event_UPDATE", 1, tuple("resource", "CLIENT"));
-        assertMetric("keycloak_admin_event_ACTION", 2, tuple("resource", "AUTHORIZATION_SCOPE"));
+        assertMetric("keycloak_admin_events_total_UPDATE", 1, tuple("resource", "CLIENT"));
+        assertMetric("keycloak_admin_events_total_ACTION", 2, tuple("resource", "AUTHORIZATION_SCOPE"));
     }
 
     @Test
@@ -152,7 +152,7 @@ public class PrometheusExporterTest {
     @Test
     public void shouldCorrectlyRecordResponseErrors() throws IOException {
         PrometheusExporter.instance().recordResponseError(500, "POST", "/");
-        assertGenericMetric("keycloak_response_errors", 1, tuple("code", "500"), tuple("method", "POST"), tuple("route", "/"));
+        assertGenericMetric("keycloak_response_errors_total", 1, tuple("code", "500"), tuple("method", "POST"), tuple("route", "/"));
     }
 
     private void assertGenericMetric(String metricName, double metricValue, Tuple<String, String>... labels) throws IOException {
