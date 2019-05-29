@@ -2,36 +2,35 @@ package org.jboss.aerogear.keycloak.metrics;
 
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
+import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import io.prometheus.client.exporter.common.TextFormat;
 import io.prometheus.client.hotspot.DefaultExports;
 import org.jboss.logging.Logger;
 import org.keycloak.events.Event;
-import org.keycloak.events.EventType;
 import org.keycloak.events.admin.AdminEvent;
-import org.keycloak.events.admin.OperationType;
+import org.keycloak.models.*;
 
 import java.io.*;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class PrometheusExporter {
 
-    private final static String USER_EVENT_PREFIX = "keycloak_user_event_";
-    private final static String ADMIN_EVENT_PREFIX = "keycloak_admin_event_";
     private final static String PROVIDER_KEYCLOAK_OPENID = "keycloak";
-
     private final static PrometheusExporter INSTANCE = new PrometheusExporter();
-
     private final static Logger logger = Logger.getLogger(PrometheusExporter.class);
 
     // these fields are package private on purpose
-    final Map<String, Counter> counters = new HashMap<>();
     final Counter totalLogins;
     final Counter totalFailedLoginAttempts;
     final Counter totalRegistrations;
     final Counter responseErrors;
+    final Counter eventCounter;
+    final Counter adminEventCounter;
     final Histogram requestDuration;
+    final Gauge activeSessions;
+
 
     private PrometheusExporter() {
         // The metrics collector needs to be a singleton because requiring a
@@ -43,27 +42,27 @@ public final class PrometheusExporter {
 
         // package private on purpose
         totalLogins = Counter.build()
-            .name("keycloak_logins")
+            .name("keycloak_logins_total")
             .help("Total successful logins")
             .labelNames("realm", "provider")
             .register();
 
         // package private on purpose
         totalFailedLoginAttempts = Counter.build()
-            .name("keycloak_failed_login_attempts")
+            .name("keycloak_failed_login_attempts_total")
             .help("Total failed login attempts")
-            .labelNames("realm", "provider", "error")
+            .labelNames("realm", "provider", "error", "client_id")
             .register();
 
         // package private on purpose
         totalRegistrations = Counter.build()
-            .name("keycloak_registrations")
+            .name("keycloak_registrations_total")
             .help("Total registered users")
             .labelNames("realm", "provider")
             .register();
 
         responseErrors = Counter.build()
-            .name("keycloak_response_errors")
+            .name("keycloak_response_errors_total")
             .help("Total number of error responses")
             .labelNames("code", "method", "route")
             .register();
@@ -75,20 +74,24 @@ public final class PrometheusExporter {
             .labelNames("method", "route")
             .register();
 
-        // Counters for all user events
-        for (EventType type : EventType.values()) {
-            if (type.equals(EventType.LOGIN) || type.equals(EventType.LOGIN_ERROR) || type.equals(EventType.REGISTER)) {
-                continue;
-            }
-            final String counterName = buildCounterName(type);
-            counters.put(counterName, createCounter(counterName, false));
-        }
+        eventCounter = Counter.build()
+            .name("keycloak_user_events_total")
+            .labelNames("realm", "event_name")
+            .help("Keycloak event")
+            .register();
 
-        // Counters for all admin events
-        for (OperationType type : OperationType.values()) {
-            final String counterName = buildCounterName(type);
-            counters.put(counterName, createCounter(counterName, true));
-        }
+        adminEventCounter = Counter.build()
+            .name("keycloak_admin_events_total")
+            .labelNames("realm", "event_name", "resource")
+            .help("Keycloak admin event")
+            .register();
+
+        // Active sessions count
+        activeSessions = Gauge.build()
+            .name("keycloak_active_sessions_total")
+            .help("Active user sessions count")
+            .labelNames("realm", "client_id")
+            .register();
 
         // Initialize the default metrics for the hotspot VM
         DefaultExports.initialize();
@@ -99,32 +102,14 @@ public final class PrometheusExporter {
     }
 
     /**
-     * Creates a counter based on a event name
-     */
-    private static Counter createCounter(final String name, boolean isAdmin) {
-        final Counter.Builder counter = Counter.build().name(name);
-
-        if (isAdmin) {
-            counter.labelNames("realm", "resource").help("Generic KeyCloak Admin event");
-        } else {
-            counter.labelNames("realm").help("Generic KeyCloak User event");
-        }
-
-        return counter.register();
-    }
-
-    /**
      * Count generic user event
      *
      * @param event User event
      */
     public void recordGenericEvent(final Event event) {
-        final String counterName = buildCounterName(event.getType());
-        if (counters.get(counterName) == null) {
-            logger.warnf("Counter for event type %s does not exist. Realm: %s", event.getType().name(), event.getRealmId());
-            return;
-        }
-        counters.get(counterName).labels(event.getRealmId()).inc();
+        eventCounter
+            .labels(event.getRealmId(), event.getType().name())
+            .inc();
     }
 
     /**
@@ -133,12 +118,9 @@ public final class PrometheusExporter {
      * @param event Admin event
      */
     public void recordGenericAdminEvent(final AdminEvent event) {
-        final String counterName = buildCounterName(event.getOperationType());
-        if (counters.get(counterName) == null) {
-            logger.warnf("Counter for admin event operation type %s does not exist. Resource type: %s, realm: %s", event.getOperationType().name(), event.getResourceType().name(), event.getRealmId());
-            return;
-        }
-        counters.get(counterName).labels(event.getRealmId(), event.getResourceType().name()).inc();
+        adminEventCounter
+            .labels(event.getRealmId(), event.getOperationType().name(), event.getResourceType().name())
+            .inc();
     }
 
     /**
@@ -172,15 +154,15 @@ public final class PrometheusExporter {
     public void recordLoginError(final Event event) {
         final String provider = getIdentityProvider(event);
 
-        totalFailedLoginAttempts.labels(event.getRealmId(), provider, event.getError()).inc();
+        totalFailedLoginAttempts.labels(event.getRealmId(), provider, event.getError(), event.getClientId()).inc();
     }
 
     /**
      * Record the duration between one request and response
      *
-     * @param amt The duration in milliseconds
+     * @param amt    The duration in milliseconds
      * @param method HTTP method of the request
-     * @param route Request route / path
+     * @param route  Request route / path
      */
     public void recordRequestDuration(double amt, String method, String route) {
         requestDuration.labels(method, route).observe(amt);
@@ -189,9 +171,9 @@ public final class PrometheusExporter {
     /**
      * Increase the response error count by a given method and route
      *
-     * @param code The returned http status code
+     * @param code   The returned http status code
      * @param method The request method used
-     * @param route The request route / path
+     * @param route  The request route / path
      */
     public void recordResponseError(int code, String method, String route) {
         responseErrors.labels(Integer.toString(code), method, route).inc();
@@ -228,12 +210,29 @@ public final class PrometheusExporter {
         writer.flush();
     }
 
-    private String buildCounterName(OperationType type) {
-        return ADMIN_EVENT_PREFIX + type.name();
-    }
+    public void export(final OutputStream stream, KeycloakSession session) throws IOException {
+        RealmProvider realmProvider = session.getProvider(RealmProvider.class);
+        UserSessionProvider userSessionProvider = session.getProvider(UserSessionProvider.class);
 
-    private String buildCounterName(EventType type) {
-        return USER_EVENT_PREFIX + type.name();
-    }
+        for (RealmModel realm : realmProvider.getRealms()) {
+            Map<String, Long> stats = userSessionProvider.getActiveClientSessionStats(realm, false);
 
+            try {
+                List<ClientModel> clients = realm.getClients();
+                for (ClientModel client : clients) {
+                    activeSessions
+                        .labels(realm.getName(), client.getClientId())
+                        .set(stats.getOrDefault(client.getId(), (long) 0));
+                }
+
+
+            } catch (Exception e) {
+                logger.error(e.getStackTrace());
+            }
+        }
+
+        final Writer writer = new BufferedWriter(new OutputStreamWriter(stream));
+        TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
+        writer.flush();
+    }
 }
