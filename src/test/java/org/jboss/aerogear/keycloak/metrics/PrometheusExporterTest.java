@@ -110,15 +110,15 @@ public class PrometheusExporterTest {
     public void shouldCorrectlyRecordGenericEvents() throws IOException {
         final Event event1 = createEvent(EventType.UPDATE_EMAIL);
         PrometheusExporter.instance().recordGenericEvent(event1);
-        assertMetric("keycloak_user_events_total", 1, tuple("update_email", "action"));
+        assertMetric("keycloak_user_events_total", 1, tuple("event_name", "UPDATE_EMAIL"));
         PrometheusExporter.instance().recordGenericEvent(event1);
-        assertMetric("keycloak_user_events_total", 2, tuple("update_email", "action"));
+        assertMetric("keycloak_user_events_total", 2, tuple("event_name", "UPDATE_EMAIL"));
 
 
         final Event event2 = createEvent(EventType.REVOKE_GRANT);
         PrometheusExporter.instance().recordGenericEvent(event2);
-        assertMetric("keycloak_user_events_total", 1, tuple("revoke_grant", "action"));
-        assertMetric("keycloak_user_events_total", 2, tuple("update_email", "action"));
+        assertMetric("keycloak_user_events_total", 1, tuple("event_name", "REVOKE_GRANT"));
+        assertMetric("keycloak_user_events_total", 2, tuple("event_name", "UPDATE_EMAIL"));
     }
 
     @Test
@@ -128,9 +128,9 @@ public class PrometheusExporterTest {
         event1.setResourceType(ResourceType.AUTHORIZATION_SCOPE);
         event1.setRealmId(DEFAULT_REALM);
         PrometheusExporter.instance().recordGenericAdminEvent(event1);
-        assertMetric("keycloak_admin_events_total", 1, tuple("event_name", "action"), tuple("resource", "AUTHORIZATION_SCOPE"));
+        assertMetric("keycloak_admin_events_total", 1, tuple("event_name", "ACTION"), tuple("resource", "AUTHORIZATION_SCOPE"));
         PrometheusExporter.instance().recordGenericAdminEvent(event1);
-        assertMetric("keycloak_admin_events_total", 2, tuple("event_name", "action"), tuple("resource", "AUTHORIZATION_SCOPE"));
+        assertMetric("keycloak_admin_events_total", 2, tuple("event_name", "ACTION"), tuple("resource", "AUTHORIZATION_SCOPE"));
 
 
         final AdminEvent event2 = new AdminEvent();
@@ -138,8 +138,8 @@ public class PrometheusExporterTest {
         event2.setResourceType(ResourceType.CLIENT);
         event2.setRealmId(DEFAULT_REALM);
         PrometheusExporter.instance().recordGenericAdminEvent(event2);
-        assertMetric("keycloak_admin_events_total", 1, tuple("event_name", "update"), tuple("resource", "CLIENT"));
-        assertMetric("keycloak_admin_events_total", 2, tuple("event_name", "action"), tuple("resource", "AUTHORIZATION_SCOPE"));
+        assertMetric("keycloak_admin_events_total", 1, tuple("event_name", "UPDATE"), tuple("resource", "CLIENT"));
+        assertMetric("keycloak_admin_events_total", 2, tuple("event_name", "ACTION"), tuple("resource", "AUTHORIZATION_SCOPE"));
     }
 
     @Test
