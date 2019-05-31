@@ -67,11 +67,11 @@ public class PrometheusExporterTest {
     @Test
     public void shouldRecordLoginsPerRealm() throws IOException {
         // realm 1
-        final Event login1 = createEvent(EventType.LOGIN, DEFAULT_REALM, null, tuple("identity_provider", "THE_ID_PROVIDER"));
+        final Event login1 = createEvent(EventType.LOGIN, DEFAULT_REALM, tuple("identity_provider", "THE_ID_PROVIDER"));
         PrometheusExporter.instance().recordLogin(login1);
 
         // realm 2
-        final Event login2 = createEvent(EventType.LOGIN, "OTHER_REALM", null, tuple("identity_provider", "THE_ID_PROVIDER"));
+        final Event login2 = createEvent(EventType.LOGIN, "OTHER_REALM", tuple("identity_provider", "THE_ID_PROVIDER"));
         PrometheusExporter.instance().recordLogin(login2);
 
         assertMetric("keycloak_logins_total", 1, DEFAULT_REALM, tuple("provider", "THE_ID_PROVIDER"));
@@ -81,15 +81,15 @@ public class PrometheusExporterTest {
     @Test
     public void shouldCorrectlyCountLoginError() throws IOException {
         // with id provider defined
-        final Event event1 = createEvent(EventType.LOGIN_ERROR, DEFAULT_REALM, "user_not_found", tuple("identity_provider", "THE_ID_PROVIDER"));
+        final Event event1 = createEvent(EventType.LOGIN_ERROR, DEFAULT_REALM, "user_not_found", "THE_CLIENT_ID", tuple("identity_provider", "THE_ID_PROVIDER"));
         PrometheusExporter.instance().recordLoginError(event1);
-        assertMetric("keycloak_failed_login_attempts_total", 1, tuple("provider", "THE_ID_PROVIDER"), tuple("error", "user_not_found"));
+        assertMetric("keycloak_failed_login_attempts_total", 1, tuple("provider", "THE_ID_PROVIDER"), tuple("error", "user_not_found"), tuple("client_id", "THE_CLIENT_ID"));
 
         // without id provider defined
-        final Event event2 = createEvent(EventType.LOGIN_ERROR, DEFAULT_REALM, "user_not_found");
+        final Event event2 = createEvent(EventType.LOGIN_ERROR, DEFAULT_REALM, "user_not_found", "THE_CLIENT_ID");
         PrometheusExporter.instance().recordLoginError(event2);
-        assertMetric("keycloak_failed_login_attempts_total", 1, tuple("provider", "keycloak"), tuple("error", "user_not_found"));
-        assertMetric("keycloak_failed_login_attempts_total", 1, tuple("provider", "THE_ID_PROVIDER"), tuple("error", "user_not_found"));
+        assertMetric("keycloak_failed_login_attempts_total", 1, tuple("provider", "keycloak"), tuple("error", "user_not_found"), tuple("client_id", "THE_CLIENT_ID"));
+        assertMetric("keycloak_failed_login_attempts_total", 1, tuple("provider", "THE_ID_PROVIDER"), tuple("error", "user_not_found"), tuple("client_id", "THE_CLIENT_ID"));
     }
 
     @Test
@@ -110,15 +110,15 @@ public class PrometheusExporterTest {
     public void shouldCorrectlyRecordGenericEvents() throws IOException {
         final Event event1 = createEvent(EventType.UPDATE_EMAIL);
         PrometheusExporter.instance().recordGenericEvent(event1);
-        assertMetric("keycloak_user_events_total", 1, tuple("update_email", "action"));
+        assertMetric("keycloak_user_events_total", 1, tuple("event_name", "UPDATE_EMAIL"));
         PrometheusExporter.instance().recordGenericEvent(event1);
-        assertMetric("keycloak_user_events_total", 2, tuple("update_email", "action"));
+        assertMetric("keycloak_user_events_total", 2, tuple("event_name", "UPDATE_EMAIL"));
 
 
         final Event event2 = createEvent(EventType.REVOKE_GRANT);
         PrometheusExporter.instance().recordGenericEvent(event2);
-        assertMetric("keycloak_user_events_total", 1, tuple("revoke_grant", "action"));
-        assertMetric("keycloak_user_events_total", 2, tuple("update_email", "action"));
+        assertMetric("keycloak_user_events_total", 1, tuple("event_name", "REVOKE_GRANT"));
+        assertMetric("keycloak_user_events_total", 2, tuple("event_name", "UPDATE_EMAIL"));
     }
 
     @Test
@@ -128,9 +128,9 @@ public class PrometheusExporterTest {
         event1.setResourceType(ResourceType.AUTHORIZATION_SCOPE);
         event1.setRealmId(DEFAULT_REALM);
         PrometheusExporter.instance().recordGenericAdminEvent(event1);
-        assertMetric("keycloak_admin_events_total", 1, tuple("event_name", "action"), tuple("resource", "AUTHORIZATION_SCOPE"));
+        assertMetric("keycloak_admin_events_total", 1, tuple("event_name", "ACTION"), tuple("resource", "AUTHORIZATION_SCOPE"));
         PrometheusExporter.instance().recordGenericAdminEvent(event1);
-        assertMetric("keycloak_admin_events_total", 2, tuple("event_name", "action"), tuple("resource", "AUTHORIZATION_SCOPE"));
+        assertMetric("keycloak_admin_events_total", 2, tuple("event_name", "ACTION"), tuple("resource", "AUTHORIZATION_SCOPE"));
 
 
         final AdminEvent event2 = new AdminEvent();
@@ -138,8 +138,8 @@ public class PrometheusExporterTest {
         event2.setResourceType(ResourceType.CLIENT);
         event2.setRealmId(DEFAULT_REALM);
         PrometheusExporter.instance().recordGenericAdminEvent(event2);
-        assertMetric("keycloak_admin_events_total", 1, tuple("event_name", "update"), tuple("resource", "CLIENT"));
-        assertMetric("keycloak_admin_events_total", 2, tuple("event_name", "action"), tuple("resource", "AUTHORIZATION_SCOPE"));
+        assertMetric("keycloak_admin_events_total", 1, tuple("event_name", "UPDATE"), tuple("resource", "CLIENT"));
+        assertMetric("keycloak_admin_events_total", 2, tuple("event_name", "ACTION"), tuple("resource", "AUTHORIZATION_SCOPE"));
     }
 
     @Test
@@ -197,10 +197,11 @@ public class PrometheusExporterTest {
         this.assertMetric(metricName, metricValue, DEFAULT_REALM, labels);
     }
 
-    private Event createEvent(EventType type, String realm, String error, Tuple<String, String>... tuples) {
+    private Event createEvent(EventType type, String realm, String error, String clientId, Tuple<String, String>... tuples) {
         final Event event = new Event();
         event.setType(type);
         event.setRealmId(realm);
+        event.setClientId(clientId);
         if (tuples != null) {
             event.setDetails(new HashMap<>());
             for (Tuple<String, String> tuple : tuples) {
@@ -216,8 +217,16 @@ public class PrometheusExporterTest {
         return event;
     }
 
+    private Event createEvent(EventType type, String realm, String error, Tuple<String, String>... tuples) {
+        return this.createEvent(type, realm, error, (String) null, tuples);
+    }
+
+    private Event createEvent(EventType type, String realm, Tuple<String, String>... tuples) {
+        return this.createEvent(type, realm, (String) null, (String) null, tuples);
+    }
+
     private Event createEvent(EventType type, Tuple<String, String>... tuples) {
-        return this.createEvent(type, DEFAULT_REALM, null, tuples);
+        return this.createEvent(type, DEFAULT_REALM, (String) null, (String) null, tuples);
     }
 
     private Event createEvent(EventType type) {

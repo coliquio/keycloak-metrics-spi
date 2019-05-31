@@ -5,6 +5,7 @@ env:
     - PROMETHEUS_VERSION=0.3.0
 install: "./gradlew assemble"
 script:
+    - "./gradlew test --info"
     - "./gradlew -Pversion=${TRAVIS_TAG} -PkeycloakVersion=${KEYCLOAK_VERSION} -PprometheusVersion=${PROMETHEUS_VERSION} jar"
 deploy:
   provider: releases
